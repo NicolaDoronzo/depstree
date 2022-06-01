@@ -69,7 +69,7 @@ module.exports = {
 
       // GLSL
       {
-        test: /\.glsl$/,
+        test: /\.(glsl|frag|vert)$/,
         use: ["raw-loader"],
       },
     ],

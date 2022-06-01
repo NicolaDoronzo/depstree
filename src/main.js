@@ -1,91 +1,95 @@
-import * as dat from "dat.gui";
 import * as THREE from "three";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import Stats from "stats.js";
-import "./styles.css";
+import { MathUtils } from "three";
+import setup from "./setup";
+import { createTree, makeTreeGui } from "./tree";
 
-const stats = new Stats();
-const gui = new dat.GUI();
-const canvas = document.querySelector("canvas.webgl");
-const scene = new THREE.Scene();
+const { run, scene, gui } = setup();
 
-const sizes = {
-  width: innerWidth,
-  height: innerHeight,
+const pointLight = new THREE.PointLight(0xffffff, 0.7);
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
+scene.add(pointLight);
+// scene.add(ambientLight);
+
+const params = {
+  depthLevels: 4,
+  rootBranchHeight: 8,
+  rootBranchRadius: 1,
 };
 
-if (process.env.NODE_ENV) {
-  stats.showPanel(0);
-  document.body.appendChild(stats.dom);
-}
+let aTree = null;
 
-addEventListener("resize", () => {
-  sizes.width = innerWidth;
-  sizes.height = innerHeight;
+const drawOneTree = () => {
+  if (aTree) {
+    scene.remove(aTree.mesh);
+    aTree.dispose();
+  }
 
-  camera.aspect = sizes.width / sizes.height;
-  camera.updateProjectionMatrix();
+  const tree = createTree(
+    {
+      levels: params.depthLevels,
+      branchAmount: THREE.MathUtils.randInt(
+        params.minBranchAmount,
+        params.maxBranchAmount
+      ),
+    },
+    {
+      h: params.rootBranchHeight,
+      radius: params.rootBranchRadius,
+    }
+  );
+  aTree = tree;
+  scene.add(tree.mesh);
+};
 
-  renderer.setSize(sizes.width, sizes.height);
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-});
+makeTreeGui(drawOneTree);
 
-const camera = new THREE.PerspectiveCamera(
-  50,
-  sizes.width / sizes.height,
-  0.1,
-  100
+gui.add(params, "depthLevels", 1, 8, 1).onFinishChange(drawOneTree);
+gui.add(params, "rootBranchHeight", 1, 50, 0.1).onFinishChange(drawOneTree);
+gui.add(params, "rootBranchRadius", 0.5, 10, 0.1).onFinishChange(drawOneTree);
+gui.add(
+  {
+    "New Tree": () => drawOneTree(),
+  },
+  "New Tree"
 );
 
-camera.position.x = 4;
-camera.position.y = 2;
-camera.position.z = 5;
+const forest = new Array(20).fill(null).map(() =>
+  createTree(
+    {
+      levels: params.depthLevels,
+      branchAmount: THREE.MathUtils.randInt(
+        params.minBranchAmount,
+        params.maxBranchAmount
+      ),
+    },
+    {
+      h: params.rootBranchHeight,
+      radius: params.rootBranchRadius,
+    }
+  )
+);
 
-scene.add(camera);
+const fieldWidth = 100;
+const fieldHeight = 100;
 
-const orbitControls = new OrbitControls(camera, canvas);
-orbitControls.enableDamping = true;
+const field = new THREE.Mesh(
+  new THREE.PlaneBufferGeometry(fieldWidth, fieldHeight, 20, 20),
+  new THREE.MeshBasicMaterial({ wireframe: true, color: "black" })
+);
 
-const renderer = new THREE.WebGLRenderer({
-  canvas,
-  preserveDrawingBuffer: true,
-});
+field.rotateX(-Math.PI * 0.5);
+scene.add(field);
 
-renderer.setSize(sizes.width, sizes.height);
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+for (const tree of forest) {
+  tree.mesh.position.x = MathUtils.randFloatSpread(fieldWidth);
+  tree.mesh.position.z = MathUtils.randFloatSpread(fieldHeight);
+  scene.add(tree.mesh);
+}
 
 const update = (elapsedTime) => {
-  orbitControls.update();
-
-  /* 
-    UPDATE CODE HERE 
-  */
-  
-  renderer.render(scene, camera);
+  for (const tree of forest) {
+    tree.grow();
+  }
 };
 
-const clock = new THREE.Clock();
-
-const tick = () => {
-  const elapsedTime = clock.getElapsedTime();
-  if (process.env.NODE_ENV) {
-    stats.begin();
-    update(elapsedTime);
-    stats.end();
-  } else {
-    update(elapsedTime);
-  }
-  requestAnimationFrame(tick);
-};
-
-tick();
-
-addEventListener("keyup", (e) => {
-  if (e.key === "s") {
-    const base64 = canvas.toDataURL("image/jpeg", 1.0);
-    const a = document.createElement('a');
-    a.href = base64;
-    a.download = new Date().toUTCString();
-    a.click();
-  }
-});
+run(update);
