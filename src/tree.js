@@ -15,7 +15,7 @@ const treeParams = {
   childRadiusRatio: 0.45,
   childRadiusRandomness: 1.5,
   branchMinAmount: 2,
-  branchMaxAmount: 5,
+  branchMaxAmount: 4,
   branchVerticalPosition: 0.2,
   branchVerticalPositionRandomness: 1.3,
 };
@@ -24,8 +24,6 @@ const branchGeoParams = {
   radialSegments: 10,
   heightSegments: 5,
 };
-
-const cachedMeshes = [];
 
 export const makeTreeGui = (onFinishChange) => {
   const treeFolder = gui.addFolder("Tree params");
@@ -76,10 +74,11 @@ export const makeTreeGui = (onFinishChange) => {
 
 class Tree {
   static meshTypeAmount = 5;
-  static material = new THREE.ShaderMaterial({
-    vertexShader,
-    fragmentShader,
-    wireframe: true
+  static material = new THREE.MeshToonMaterial({
+    // vertexShader,
+    color: 0x000000,
+    // fragmentShader,
+    // wireframe: false
   });
 
   constructor({ radius, h }) {

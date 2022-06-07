@@ -48,7 +48,6 @@ const setup = () => {
     1000
   );
 
-  // camera.position.z = 50;
   camera.position.y = 1.8;
   scene.add(camera);
 
@@ -66,16 +65,6 @@ const setup = () => {
   renderer.setSize(sizes.width, sizes.height);
   renderer.setClearColor(0xffffff);
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-
-  // addEventListener("keyup", (e) => {
-  //   if (e.key === "s") {
-  //     const base64 = canvas.toDataURL("image/jpeg", 1.0);
-  //     const a = document.createElement("a");
-  //     a.href = base64;
-  //     a.download = new Date().toUTCString();
-  //     a.click();
-  //   }
-  // });
 
   const clock = new THREE.Clock();
   let previousTime = 0;

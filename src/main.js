@@ -5,10 +5,16 @@ import { createTree, makeTreeGui } from "./tree";
 
 const { run, scene, gui } = setup();
 
-const pointLight = new THREE.PointLight(0xffffff, 0.7);
+const pointLight = new THREE.PointLight(0xffffff, 10,);
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
-scene.add(pointLight);
+const sun = new THREE.DirectionalLight(0xf5cd05, 1);
+
+sun.position.set(100, 1000, 100);
+scene.add(sun);
+// sun.
+// scene.add(pointLight);
 // scene.add(ambientLight);
+scene.fog = new THREE.FogExp2(0xdfe9f3, .01);
 
 const params = {
   depthLevels: 4,
@@ -69,12 +75,12 @@ const forest = new Array(20).fill(null).map(() =>
   )
 );
 
-const fieldWidth = 100;
-const fieldHeight = 100;
+const fieldWidth = 1000;
+const fieldHeight = 1000;
 
 const field = new THREE.Mesh(
   new THREE.PlaneBufferGeometry(fieldWidth, fieldHeight, 20, 20),
-  new THREE.MeshBasicMaterial({ wireframe: true, color: "black" })
+  new THREE.MeshStandardMaterial({ wireframe: false, color: "black" })
 );
 
 field.rotateX(-Math.PI * 0.5);
