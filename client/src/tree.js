@@ -1,12 +1,13 @@
 import * as THREE from "three";
 import { MathUtils } from "three";
 import setup from "./setup";
-import vertexShader from "./shaders/tree.vert";
-import fragmentShader from "./shaders/tree.frag";
 
 const { gui } = setup();
 
 const treeParams = {
+  depthLevels: 4,
+  rootBranchHeight: 8,
+  rootBranchRadius: 1,
   bottomToTopRadiusRatio: 1,
   branchRotationAngle: 0.63,
   branchRotationRandomness: 1.4,
@@ -28,6 +29,15 @@ const branchGeoParams = {
 export const makeTreeGui = (onFinishChange) => {
   const treeFolder = gui.addFolder("Tree params");
 
+  treeFolder
+    .add(treeParams, "depthLevels", 1, 8, 1)
+    .onFinishChange(onFinishChange);
+  treeFolder
+    .add(treeParams, "rootBranchHeight", 1, 50, 0.1)
+    .onFinishChange(onFinishChange);
+  treeFolder
+    .add(treeParams, "rootBranchRadius", 0.5, 10, 0.1)
+    .onFinishChange(onFinishChange);
   treeFolder
     .add(treeParams, "bottomToTopRadiusRatio", 0.5, 2)
     .onFinishChange(onFinishChange);
@@ -73,18 +83,17 @@ export const makeTreeGui = (onFinishChange) => {
 };
 
 class Tree {
-  static meshTypeAmount = 5;
   static material = new THREE.MeshToonMaterial({
     // vertexShader,
     color: 0x000000,
     // fragmentShader,
-    // wireframe: false
+    wireframe: true,
   });
 
-  constructor({ radius, h }) {
+  constructor({ radius, h, bottomToTopRadiusRatio }) {
     this.radius = radius;
     this.h = h;
-    this.topRadius = this.radius * treeParams.bottomToTopRadiusRatio;
+    this.topRadius = this.radius * bottomToTopRadiusRatio;
     this.branches = [];
 
     this.geometry = new THREE.CylinderBufferGeometry(
@@ -99,7 +108,8 @@ class Tree {
     this.mesh = new THREE.Group();
     this.branchMesh.translateY(h / 2);
     this.mesh.add(this.branchMesh);
-    this.mesh.scale.y = 0;
+
+    // this.mesh.scale.y = 0;
     this.growthSpeed = MathUtils.randFloat(0.01, 0.03);
   }
 
@@ -116,18 +126,34 @@ class Tree {
   };
 }
 
-export const createTree = ({ levels }, opts = { radius: 1, h: 8 }) => {
+export const createTree = ({
+  levels = treeParams.depthLevels,
+  radius = treeParams.rootBranchRadius,
+  h = treeParams.rootBranchHeight,
+  bottomToTopRadiusRatio = treeParams.bottomToTopRadiusRatio,
+  childRadiusRatio = treeParams.childRadiusRatio,
+  childHeightRatio = treeParams.childHeightRatio,
+  childRadiusRandomness = treeParams.childRadiusRandomness,
+  childHeightRandomness = treeParams.childHeightRandomness,
+  branchVerticalPosition = treeParams.branchVerticalPosition,
+  branchVerticalPositionRandomness = treeParams.branchVerticalPositionRandomness,
+  branchRotationAngle = treeParams.branchRotationAngle,
+  branchRotationRandomness = treeParams.branchRotationRandomness,
+  branchMinAmount = treeParams.branchMinAmount,
+  branchMaxAmount = treeParams.branchMaxAmount,
+} = {}) => {
   const createBranch = (parent, branchAmount) => (index) => {
-    const childAvgRadius = parent.radius * treeParams.childRadiusRatio;
-    const childAvgHeight = parent.h * treeParams.childHeightRatio;
+    const childAvgRadius = parent.radius * childRadiusRatio;
+    const childAvgHeight = parent.h * childHeightRatio;
     const branch = new Tree({
+      bottomToTopRadiusRatio,
       radius: MathUtils.randFloat(
-        childAvgRadius / treeParams.childRadiusRandomness,
-        childAvgRadius * treeParams.childRadiusRandomness
+        childAvgRadius / childRadiusRandomness,
+        childAvgRadius * childRadiusRandomness
       ),
       h: MathUtils.randFloat(
-        childAvgHeight / treeParams.childHeightRandomness,
-        childAvgHeight * treeParams.childHeightRandomness
+        childAvgHeight / childHeightRandomness,
+        childAvgHeight * childHeightRandomness
       ),
     });
     const angle = ((Math.PI * 2) / branchAmount) * index;
@@ -136,35 +162,28 @@ export const createTree = ({ levels }, opts = { radius: 1, h: 8 }) => {
       parent.h -
         branch.radius -
         MathUtils.randFloat(
-          treeParams.branchVerticalPosition /
-            treeParams.branchVerticalPositionRandomness,
-          treeParams.branchVerticalPosition *
-            treeParams.branchVerticalPositionRandomness
+          branchVerticalPosition / branchVerticalPositionRandomness,
+          branchVerticalPosition * branchVerticalPositionRandomness
         )
     );
     branch.mesh.translateZ((Math.sin(angle) * parent.radius) / 2);
     branch.mesh.rotateY(-angle);
     branch.mesh.rotateZ(
       -THREE.MathUtils.randFloat(
-        treeParams.branchRotationAngle / treeParams.branchRotationRandomness,
-        treeParams.branchRotationAngle * treeParams.branchRotationRandomness
+        branchRotationAngle / branchRotationRandomness,
+        branchRotationAngle * branchRotationRandomness
       )
     );
     parent.mesh.add(branch.mesh);
     return branch;
   };
 
-  const root = new Tree(opts);
+  const root = new Tree({ radius, h, bottomToTopRadiusRatio });
   const rec = (lv) => (tree) => {
     if (lv < levels) {
-      const branches = new Array(
-        THREE.MathUtils.randInt(
-          treeParams.branchMinAmount,
-          treeParams.branchMaxAmount
-        )
-      )
-        .fill(null)
-        .map((_, i, arr) => createBranch(tree, arr.length)(i));
+      const branches = [
+        ...new Array(THREE.MathUtils.randInt(branchMinAmount, branchMaxAmount)),
+      ].map((_, i, arr) => createBranch(tree, arr.length)(i));
       branches.forEach(rec(lv + 1));
       Object.assign(tree, { branches });
     }

@@ -1,8 +1,8 @@
 import * as dat from "dat.gui";
 import Stats from "stats.js";
 import * as THREE from "three";
-import { initFpsControls } from "./fps-controls";
 import "./styles.css";
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
 const setup = () => {
   const stats = new Stats();
@@ -45,26 +45,26 @@ const setup = () => {
     50,
     sizes.width / sizes.height,
     0.1,
-    1000
+    10000
   );
 
   camera.position.y = 1.8;
+  camera.position.z = 500;
   scene.add(camera);
 
-  const { controls, update: updateFpsControls } = initFpsControls(camera);
-
-  addEventListener("click", () => {
-    controls.isLocked ? controls.unlock() : controls.lock();
-  });
-
+  
+  
   const renderer = new THREE.WebGLRenderer({
     canvas,
     preserveDrawingBuffer: true,
   });
-
+  
   renderer.setSize(sizes.width, sizes.height);
   renderer.setClearColor(0xffffff);
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.update();
 
   const clock = new THREE.Clock();
   let previousTime = 0;
@@ -78,7 +78,7 @@ const setup = () => {
     }
 
     update(elapsedTime);
-    updateFpsControls(delta);
+    controls.update();
     renderer.render(scene, camera);
     if (process.env.NODE_ENV === "development") {
       stats.end();
@@ -93,6 +93,7 @@ const setup = () => {
     renderer,
     camera,
     run: tick,
+    sizes,
   });
 };
 
