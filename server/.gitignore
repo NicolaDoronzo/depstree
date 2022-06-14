@@ -1,1 +1,3 @@
 /node_modules
+/tmp/package.json
+/tmp/package-lock.json

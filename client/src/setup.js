@@ -1,16 +1,17 @@
 import * as dat from "dat.gui";
 import Stats from "stats.js";
 import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
+import { CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRenderer";
 import "./styles.css";
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
 const setup = () => {
   const stats = new Stats();
   const gui = new dat.GUI();
   const canvas = document.querySelector("canvas.webgl");
+  const uiContainer = document.querySelector("#ui");
   const scene = new THREE.Scene();
 
-  window.scene = scene;
   window.debugSphere = (vec) => {
     const debugSphere = new THREE.Mesh(
       new THREE.SphereGeometry(0.1),
@@ -39,6 +40,8 @@ const setup = () => {
 
     renderer.setSize(sizes.width, sizes.height);
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+
+    uiRenderer.setSize(sizes.width, sizes.height);
   });
 
   const camera = new THREE.PerspectiveCamera(
@@ -52,16 +55,20 @@ const setup = () => {
   camera.position.z = 500;
   scene.add(camera);
 
-  
-  
   const renderer = new THREE.WebGLRenderer({
     canvas,
     preserveDrawingBuffer: true,
   });
-  
+
+  const uiRenderer = new CSS2DRenderer({
+    element: uiContainer,
+  });
+
   renderer.setSize(sizes.width, sizes.height);
   renderer.setClearColor(0xffffff);
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+
+  uiRenderer.setSize(sizes.width, sizes.height);
 
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.update();
@@ -80,6 +87,7 @@ const setup = () => {
     update(elapsedTime);
     controls.update();
     renderer.render(scene, camera);
+    uiRenderer.render(scene, camera);
     if (process.env.NODE_ENV === "development") {
       stats.end();
     }
@@ -94,6 +102,7 @@ const setup = () => {
     camera,
     run: tick,
     sizes,
+    uiRenderer,
   });
 };
 
