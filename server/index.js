@@ -68,7 +68,12 @@ app.post("/file", express.json(), async (req, res) => {
       cwd: "./tmp",
     });
   } catch (e) {
-    res.sendStatus(403);
+    // res.sendStatus(403);
+    console.error(
+      "SOME ERROR OR WARNING OCCURRED WHILE INSTALLING DEPENDENCIES",
+      e
+    );
+    // return;
   }
 
   console.log("Reading generated lock file...");
