@@ -25,8 +25,8 @@ export class LoadingBarUI extends CSS2DObject {
 
     super(container);
 
-    this.updateProgress = (progress) => {
-      progress.style.width = `${progress}%`;
+    this.updateProgressBar = (percentage) => {
+      progress.style.width = `${percentage}%`;
     };
   }
 }
@@ -61,10 +61,15 @@ export class EmptyPackageMenuUI extends CSS2DObject {
         loader.addEventListener("change", onChange(resolve));
       });
     };
-  }
 
-  onLoad(cb) {
-    this.cb = cb;
+    this.loadedPackage = null;
+
+    loader.addEventListener("change", () => {
+      loader.files[0]
+        .text()
+        .then((pkg) => JSON.parse(JSON.stringify(pkg)))
+        .then((json) => (this.loadedPackage = json));
+    });
   }
 }
 
@@ -81,6 +86,14 @@ export class DependencyTreeChoiceUI extends CSS2DObject {
 
     super(container);
 
+    this.chosenDepsType = null;
+
+    depsButton.addEventListener("click", () => (this.chosenDepsType = "DEPS"));
+    devDepsButton.addEventListener(
+      "click",
+      () => (this.chosenDepsType = "DEV_DEPS")
+    );
+
     this.whenChosed = () => {
       return new Promise((resolve) => {
         depsButton.addEventListener("click", () => resolve("DEPS"));
@@ -88,5 +101,4 @@ export class DependencyTreeChoiceUI extends CSS2DObject {
       });
     };
   }
-
 }
