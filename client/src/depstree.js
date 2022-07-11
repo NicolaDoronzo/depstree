@@ -3,11 +3,37 @@ import * as THREE from "three";
 import { MathUtils } from "three";
 import { mergeBufferGeometries } from "three/examples/jsm/utils/BufferGeometryUtils";
 
-function DepsTreeFactory(maxDepth) {
+function DepsTreeFactory({
+  maxDepth,
+  onBranchCreated = async () => {},
+  isAsync = false,
+  dependencies,
+}) {
   let depth = 0;
 
+  const totalBranches = (function calc(data, accumulator) {
+    if (!data.dependencies?.length) {
+      return accumulator;
+    } else {
+      return data.dependencies.reduce((acc, cur) => {
+        return calc(cur, acc + cur.dependencies.length);
+      }, accumulator);
+    }
+  })({ dependencies }, dependencies.length + 1);
+
+  let branchCreatedCounter = 0;
+
   return class DepsTree {
-    constructor({ dependencies, name, index, parent }) {
+    static get totalBranches() {
+      return totalBranches;
+    }
+
+    static get ready() {
+      return branchCreatedCounter === totalBranches;
+    }
+
+    constructor({ dependencies = [], name, index, parent }) {
+      branchCreatedCounter++;
       this.parent = parent;
       this.index = index;
       this.level = depth;
@@ -39,28 +65,47 @@ function DepsTreeFactory(maxDepth) {
         heightSegments
       );
 
-      if (parent) {
-        this.matrix = this._makeChildTransformationMatrix();
-      } else {
+      if (!parent) {
         this.matrix = new THREE.Matrix4().makeTranslation(0, this.h * 0.5, 0);
+      } else {
+        this.matrix = this._makeChildTransformationMatrix();
       }
 
       this.geometry.applyMatrix4(this.matrix);
       this._shiftVertsWithNoise();
 
-      depth++;
+      this.branches = [];
 
-      this.branches = dependencies.map(
-        (dep, i) =>
-          new DepsTree({
-            dependencies: dep.dependencies,
-            parent: this,
-            index: i,
-            name: dep.name,
-          })
-      );
+      if (!isAsync) {
+        depth++;
+        onBranchCreated(branchCreatedCounter);
+        this.branches = dependencies.map(
+          (dep, i) =>
+            new DepsTree({
+              dependencies: dep.dependencies,
+              parent: this,
+              index: i,
+              name: dep.name,
+            })
+        );
 
-      depth--;
+        depth--;
+      } else {
+        requestAnimationFrame(() => {
+          depth++;
+          onBranchCreated(branchCreatedCounter);
+          this.branches = dependencies.map(
+            (dep, i) =>
+              new DepsTree({
+                dependencies: dep.dependencies,
+                parent: this,
+                index: i,
+                name: dep.name,
+              })
+          );
+          depth--;
+        });
+      }
     }
 
     _makeChildTransformationMatrix() {
@@ -130,7 +175,7 @@ function DepsTreeFactory(maxDepth) {
 }
 
 export const createDepsTree = ({ maxDepth, ...params }) => {
-  const DepsTree = DepsTreeFactory(maxDepth);
+  const DepsTree = DepsTreeFactory({ maxDepth, onBranchCreated });
   const root = new DepsTree(params);
   const geos = root.fold((acc, n) => acc.concat(n.geometry), []);
   const treeGeo = mergeBufferGeometries(geos);
@@ -142,4 +187,36 @@ export const createDepsTree = ({ maxDepth, ...params }) => {
     })
   );
   return mesh;
+};
+
+export const createDepsTreeAsync = async ({
+  maxDepth,
+  onBranchCreated,
+  ...params
+}) => {
+  const DepsTree = DepsTreeFactory({
+    maxDepth,
+    onBranchCreated: (branchNum) =>
+      onBranchCreated(branchNum / DepsTree.totalBranches),
+    isAsync: true,
+    ...params,
+  });
+  const root = new DepsTree(params);
+  const checkReadyState = (resolve) => {
+    if (DepsTree.ready) {
+      const geoms = root.fold((acc, branch) => acc.concat(branch.geometry), []);
+      const treeGeo = mergeBufferGeometries(geoms);
+      const mesh = new THREE.Mesh(
+        treeGeo,
+        new THREE.MeshPhongMaterial({
+          color: 0x8f8f8f,
+          flatShading: true,
+        })
+      );
+      resolve(mesh);
+    } else {
+      requestAnimationFrame(() => checkReadyState(resolve));
+    }
+  };
+  return new Promise(checkReadyState);
 };
