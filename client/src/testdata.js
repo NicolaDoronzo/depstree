@@ -1,3 +1,5 @@
+import { MathUtils } from "three";
+
 const testdata = {
   name: "ng-firebase-testing",
   dependencies: [
@@ -9193,26 +9195,21 @@ const testdata = {
       ],
     },
   ],
-  maxDepth: 9,
+  maxDepth: 12,
   branchTotalAmount: 383,
 };
 
-// const fold = (cb) => acc => node => {
-//   const recurse = fold(cb)(acc);
 
-//   if (node.dependencies?.length)
-// }
-
-const calc = (data, accumulator) => {
-  if (!data.dependencies?.length) {
-    return accumulator;
-  } else {
-    return data.dependencies.reduce((acc, cur) => {
-      return calc(cur, acc + cur.dependencies.length);
-    }, accumulator);
-  }
+export const generateRandomDepsTreeMetadata = ({ maxDepth, maxDeps }) => {
+  const make = (currentLevel) => ({
+    dependencies: [...new Array(MathUtils.randInt(1, maxDeps))]
+      .map(() => (currentLevel > maxDepth ? [] : make(currentLevel + 1)))
+      .flat(),
+    level: currentLevel,
+    name: "some package name",
+    maxDepth,
+  });
+  return make(0);
 };
 
-console.log("From server", testdata.branchTotalAmount);
-console.log("Recalc", calc(testdata, 0));
 export default testdata;

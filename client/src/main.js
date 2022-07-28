@@ -7,6 +7,7 @@ import {
 } from "./package-loader-ui";
 import { Sequence, Step } from "./sequence";
 import setup from "./setup";
+import { generateRandomDepsTreeMetadata, default as testdata } from "./testdata";
 
 const getAnalysedPackage = (body) =>
   fetch("http://localhost:8081/file", {
@@ -47,7 +48,6 @@ const sequence = new Sequence([
       !!packageLoaderUI.loadedPackage,
     withResult: ({ initResult: packageLoaderUI }) => {
       scene.remove(packageLoaderUI);
-      console.log(packageLoaderUI.loadedPackage);
       return packageLoaderUI.loadedPackage;
     },
   }),
@@ -133,9 +133,24 @@ const sequence = new Sequence([
     },
   }),
 ]);
+Promise.all(
+  [...new Array(3)]
+    .map((_, i) =>
+      generateRandomDepsTreeMetadata({
+        maxDeps: 4,
+        maxDepth: 10,
+      })
+    )
+    .map((data) => createDepsTreeAsync(data))
+).then((trees) => {
+  trees.forEach((mesh, i) => {
+    mesh.position.x += 400 * i;
+    scene.add(mesh);
+  });
+});
 
-const update = (elapsedTime) => {
-  sequence.run(elapsedTime);
-};
+// createDepsTreeAsync(testdata).then(d => scene.add(d));
+
+const update = (elapsedTime) => {};
 
 run(update);

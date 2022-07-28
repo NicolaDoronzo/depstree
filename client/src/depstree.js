@@ -2,7 +2,9 @@ import SimplexNoise from "simplex-noise";
 import * as THREE from "three";
 import { MathUtils } from "three";
 import { mergeBufferGeometries } from "three/examples/jsm/utils/BufferGeometryUtils";
+import setup from "./setup";
 
+const { scene } = setup();
 function DepsTreeFactory({
   maxDepth,
   onBranchCreated = async () => {},
@@ -41,10 +43,10 @@ function DepsTreeFactory({
       this.name = name;
       this.radius = parent ? parent.topRadius : maxDepth * maxDepth;
       this.h =
-        (maxDepth + (dependencies.length * 1.3) / Math.max(this.level, 1)) *
+        (maxDepth + (Math.log10(dependencies.length)) / Math.max(this.level, 1)) *
           this.radius +
         this.name.length;
-      this.topRadius = this.radius * MathUtils.randFloat(0.5, 0.9);
+      this.topRadius = this.radius * 0.7;
 
       const radialSegments = MathUtils.clamp(
         Math.floor(this.radius / 5),
@@ -108,15 +110,11 @@ function DepsTreeFactory({
       }
     }
 
-    _makeChildTransformationMatrix() {
+    _makeChildTransformationMatrix = () => {
       const angle =
         ((Math.PI * 2) / this.parent.dependencies.length) * this.index;
       const xTranslation = (Math.cos(angle) * this.parent.radius) / 2;
-      const yTranslation = MathUtils.randFloat(
-        this.parent.h * 0.5,
-        (this.parent.h * 0.5) /
-          Math.max(this.dependencies.length + this.level * 1.5, 2)
-      );
+      const yTranslation = this.parent.h * 0.5 - this.radius * 4;
       const zTranslation = (Math.sin(angle) * this.parent.radius) / 2;
       const translationMatrix = new THREE.Matrix4().makeTranslation(
         xTranslation,
@@ -128,7 +126,8 @@ function DepsTreeFactory({
         new THREE.Euler(
           0,
           -angle,
-          -MathUtils.lerp(Math.PI / 16, Math.PI / 3, this.level / maxDepth)
+          -Math.PI * 2 / ((maxDepth / this.level))
+          // MathUtils.lerp(-Math.PI / 6, -Math.PI / 16, maxDepth / this.level)
         )
       );
 
@@ -138,13 +137,13 @@ function DepsTreeFactory({
         0
       );
       return new THREE.Matrix4()
-        .multiply(new THREE.Matrix4().makeTranslation(0, this.h * 0.5, 0))
         .multiply(this.parent.matrix)
+        .multiply(new THREE.Matrix4().makeTranslation(0, this.h * 0.5, 0))
         .multiply(translationMatrix)
         .multiply(pivotTranslatinoMatrix)
         .multiply(rotationMatrix)
         .multiply(pivotTranslatinoMatrix.invert());
-    }
+    };
 
     _shiftVertsWithNoise() {
       const verts = this.geometry.attributes.position;
@@ -171,11 +170,19 @@ function DepsTreeFactory({
         reducer(initialAccumulator, this)
       );
     }
+
+    visit(cb) {
+      cb(this);
+      this.branches.forEach((branch) => branch.visit(cb));
+    }
   };
 }
 
 export const createDepsTree = ({ maxDepth, ...params }) => {
-  const DepsTree = DepsTreeFactory({ maxDepth, onBranchCreated });
+  const DepsTree = DepsTreeFactory({
+    maxDepth,
+    dependencies: params.dependencies,
+  });
   const root = new DepsTree(params);
   const geos = root.fold((acc, n) => acc.concat(n.geometry), []);
   const treeGeo = mergeBufferGeometries(geos);
@@ -191,7 +198,7 @@ export const createDepsTree = ({ maxDepth, ...params }) => {
 
 export const createDepsTreeAsync = async ({
   maxDepth,
-  onBranchCreated,
+  onBranchCreated = () => {},
   ...params
 }) => {
   const DepsTree = DepsTreeFactory({
