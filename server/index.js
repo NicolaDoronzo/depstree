@@ -7,8 +7,10 @@ const DependencyFactory = function () {
   const depsCache = {};
   const branchDependencyStack = [];
   let maxDepth = 0;
+  let branchCounter = 0;
   return class D {
     constructor(name, allDependencies) {
+      branchCounter++;
       branchDependencyStack.push(name);
       this.name = name;
 
@@ -34,6 +36,10 @@ const DependencyFactory = function () {
     static getMaxDepth() {
       return maxDepth;
     }
+
+    static getTotalBranchAmount() {
+      return branchCounter;
+    }
   };
 };
 
@@ -45,13 +51,9 @@ app.get("/test", (req, res) => {
   console.log("GOT REQUEST");
   res.send("OK!");
 });
-let cachedRes = null;
 app.post("/file", express.json(), async (req, res) => {
-  if (cachedRes) {
-    console.log("Response from cache");
-    res.json(cachedRes);
-    return;
-  }
+  console.log("REQUEST BODY --->", req.body);
+
   const packageFile = req.body;
   if (fs.existsSync("./tmp/package-lock.json")) {
     console.log("lock already exists. Removing existing..");
@@ -97,17 +99,19 @@ app.post("/file", express.json(), async (req, res) => {
   const body = {
     dependencies: {
       name: lockFile.name,
-      maxDepth: Dependency.getMaxDepth(),
       dependencies: dependencyTree,
+      maxDepth: Dependency.getMaxDepth(),
+      branchTotalAmount: Dependency.getTotalBranchAmount(),
     },
     devDependencies: {
       name: lockFile.name,
       dependencies: devDependencyTree,
       maxDepth: DevDependency.getMaxDepth(),
+      branchTotalAmount: DevDependency.getTotalBranchAmount(),
     },
   };
   console.log("Response body ->", body);
-  cachedRes = body;
+
   res.json(body);
 });
 

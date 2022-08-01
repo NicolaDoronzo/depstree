@@ -48,7 +48,7 @@ const setup = () => {
     50,
     sizes.width / sizes.height,
     0.1,
-    10000
+    100000
   );
 
   camera.position.y = 1.8;
@@ -65,6 +65,8 @@ const setup = () => {
   });
 
   renderer.setSize(sizes.width, sizes.height);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.setClearColor(0xffffff);
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 

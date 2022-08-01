@@ -1,18 +1,13 @@
 import SimplexNoise from "simplex-noise";
 import * as THREE from "three";
 import { MathUtils } from "three";
-import { mergeBufferGeometries } from "three/examples/jsm/utils/BufferGeometryUtils";
-import setup from "./setup";
 
-const { scene } = setup();
-function DepsTreeFactory({
+export function DepsTreeFactory({
   maxDepth,
   onBranchCreated = async () => {},
   isAsync = false,
   dependencies,
 }) {
-  let depth = 0;
-
   const totalBranches = (function calc(data, accumulator) {
     if (!data.dependencies?.length) {
       return accumulator;
@@ -34,16 +29,18 @@ function DepsTreeFactory({
       return branchCreatedCounter === totalBranches;
     }
 
-    constructor({ dependencies = [], name, index, parent }) {
+    constructor({ dependencies = [], name, index, parent, level = 0 }) {
       branchCreatedCounter++;
       this.parent = parent;
       this.index = index;
-      this.level = depth;
+      this.level = level;
       this.dependencies = dependencies;
       this.name = name;
       this.radius = parent ? parent.topRadius : maxDepth * maxDepth;
+      
       this.h =
-        (maxDepth + (Math.log10(dependencies.length)) / Math.max(this.level, 1)) *
+        (maxDepth +
+          Math.log10(dependencies.length) / Math.max(this.level * 3, 1)) *
           this.radius +
         this.name.length;
       this.topRadius = this.radius * 0.7;
@@ -79,7 +76,6 @@ function DepsTreeFactory({
       this.branches = [];
 
       if (!isAsync) {
-        depth++;
         onBranchCreated(branchCreatedCounter);
         this.branches = dependencies.map(
           (dep, i) =>
@@ -88,13 +84,11 @@ function DepsTreeFactory({
               parent: this,
               index: i,
               name: dep.name,
+              level: this.level + 1,
             })
         );
-
-        depth--;
       } else {
         requestAnimationFrame(() => {
-          depth++;
           onBranchCreated(branchCreatedCounter);
           this.branches = dependencies.map(
             (dep, i) =>
@@ -103,9 +97,9 @@ function DepsTreeFactory({
                 parent: this,
                 index: i,
                 name: dep.name,
+                level: this.level + 1,
               })
           );
-          depth--;
         });
       }
     }
@@ -126,8 +120,7 @@ function DepsTreeFactory({
         new THREE.Euler(
           0,
           -angle,
-          -Math.PI * 2 / ((maxDepth / this.level))
-          // MathUtils.lerp(-Math.PI / 6, -Math.PI / 16, maxDepth / this.level)
+          -Math.PI / MathUtils.lerp(3, 6, (this.level + 1) / maxDepth)
         )
       );
 
@@ -177,53 +170,3 @@ function DepsTreeFactory({
     }
   };
 }
-
-export const createDepsTree = ({ maxDepth, ...params }) => {
-  const DepsTree = DepsTreeFactory({
-    maxDepth,
-    dependencies: params.dependencies,
-  });
-  const root = new DepsTree(params);
-  const geos = root.fold((acc, n) => acc.concat(n.geometry), []);
-  const treeGeo = mergeBufferGeometries(geos);
-  const mesh = new THREE.Mesh(
-    treeGeo,
-    new THREE.MeshPhongMaterial({
-      color: 0x8f8f8f,
-      flatShading: true,
-    })
-  );
-  return mesh;
-};
-
-export const createDepsTreeAsync = async ({
-  maxDepth,
-  onBranchCreated = () => {},
-  ...params
-}) => {
-  const DepsTree = DepsTreeFactory({
-    maxDepth,
-    onBranchCreated: (branchNum) =>
-      onBranchCreated(branchNum / DepsTree.totalBranches),
-    isAsync: true,
-    ...params,
-  });
-  const root = new DepsTree(params);
-  const checkReadyState = (resolve) => {
-    if (DepsTree.ready) {
-      const geoms = root.fold((acc, branch) => acc.concat(branch.geometry), []);
-      const treeGeo = mergeBufferGeometries(geoms);
-      const mesh = new THREE.Mesh(
-        treeGeo,
-        new THREE.MeshPhongMaterial({
-          color: 0x8f8f8f,
-          flatShading: true,
-        })
-      );
-      resolve(mesh);
-    } else {
-      requestAnimationFrame(() => checkReadyState(resolve));
-    }
-  };
-  return new Promise(checkReadyState);
-};
