@@ -37,10 +37,10 @@ export function DepsTreeFactory({
       this.dependencies = dependencies;
       this.name = name;
       this.radius = parent ? parent.topRadius : maxDepth * maxDepth;
-      
+
       this.h =
         (maxDepth +
-          Math.log10(dependencies.length) / Math.max(this.level * 3, 1)) *
+          Math.log10(dependencies.length || 1) / Math.max(this.level * 3, 1)) *
           this.radius +
         this.name.length;
       this.topRadius = this.radius * 0.7;
@@ -73,6 +73,11 @@ export function DepsTreeFactory({
       this.geometry.applyMatrix4(this.matrix);
       this._shiftVertsWithNoise();
 
+      this.verticesRange = {
+        min: 0,
+        max: Math.max(...this.geometry.index.array),
+      };
+
       this.branches = [];
 
       if (!isAsync) {
@@ -102,6 +107,15 @@ export function DepsTreeFactory({
           );
         });
       }
+
+      this.geometry.userData = {
+        name: this.name,
+        radius: this.radius,
+        topRadius: this.topRadius,
+        height: this.h,
+        verticesRange: this.verticesRange,
+        branches: this.branches.map((b) => b.geometry.userData),
+      };
     }
 
     _makeChildTransformationMatrix = () => {

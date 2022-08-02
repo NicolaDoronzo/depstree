@@ -1,6 +1,5 @@
 import * as THREE from "three";
 import { createDepsTreeAsync } from "./create-depstree";
-import { easeOut } from "./easing";
 import {
   DependencyTreeChoiceUI,
   EmptyPackageMenuUI,
@@ -9,7 +8,6 @@ import {
 import { Sequence, Step } from "./sequence";
 import setup from "./setup";
 import { default as testdata } from "./testdata";
-import { easeInOutCirc } from "./utils";
 
 const getAnalysedPackage = (body) =>
   fetch("http://localhost:8081/file", {
@@ -195,23 +193,32 @@ const sequence = new Sequence([
 //     });
 //   });
 
-let myMesh = null;
+let tree = null;
 createDepsTreeAsync(testdata).then((mesh) => {
-  myMesh = mesh;
-  mesh.scale.set(0);
+  console.log(mesh);
+  tree = mesh;
   scene.add(field);
   scene.add(mesh);
   const ambientLight = new THREE.AmbientLight();
   ambientLight.intensity = -1;
   gui.add(ambientLight, "intensity").name("ambient");
   scene.add(ambientLight);
-  const bottomLight = new THREE.SpotLight();
-  bottomLight.angle = 3;
-  bottomLight.penumbra = 1;
-  bottomLight.intensity = 3;
+  const bottomLight = new THREE.SpotLight(0xffffff);
+  bottomLight.intensity = 4;
+  gui.add(bottomLight, "intensity");
+  gui.add(bottomLight, "angle");
+  gui.add(bottomLight, "penumbra");
+  const rootMetadata = mesh.geometry.userData.mergedUserData[0];
   bottomLight.position.copy(mesh.position);
-  bottomLight.position.z += mesh.metadata.radius * 4;
-  bottomLight.castShadow = true;
+  bottomLight.position.x += rootMetadata.radius * 1.5;
+  bottomLight.position.z += rootMetadata.radius * 1.5;
+  bottomLight.position.y += 10;
+  bottomLight.target.position.set(
+    bottomLight.position.x,
+    1000,
+    bottomLight.position.z
+  );
+  bottomLight.target.updateMatrixWorld();
 
   const boxSizes = {
     width: Math.abs(
@@ -225,15 +232,15 @@ createDepsTreeAsync(testdata).then((mesh) => {
     ),
   };
 
-  // const box = new THREE.Mesh(
-  //   new THREE.BoxGeometry(boxSizes.width, boxSizes.height, boxSizes.depth),
-  //   new THREE.MeshStandardMaterial({
-  //     transparent: true,
-  //     opacity: 0.2,
-  //     color: "red",
-  //   })
-  // );
-  // box.position.y += boxSizes.height / 2;
+  const box = new THREE.Mesh(
+    new THREE.BoxGeometry(boxSizes.width, boxSizes.height, boxSizes.depth),
+    new THREE.MeshStandardMaterial({
+      transparent: true,
+      opacity: 0.8,
+      color: "blue",
+    })
+  );
+  box.position.y += boxSizes.height / 2;
 
   const topLight = new THREE.SpotLight();
   topLight.shadow.camera.far = 100000;
@@ -246,25 +253,37 @@ createDepsTreeAsync(testdata).then((mesh) => {
   topLight.position.y += boxSizes.height * 4;
   topLight.position.z -= boxSizes.depth * 4;
   topLight.position.x -= boxSizes.width * 4;
-  topLight.lookAt(mesh.position);
+  topLight.target.position.copy(mesh.position);
+  topLight.target.updateMatrixWorld();
 
-  scene.add(new THREE.CameraHelper(topLight.shadow.camera));
   scene.add(topLight);
-
   scene.add(bottomLight);
 });
 
-let start = null;
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+
+window.addEventListener("click", () => {
+  const intersects = raycaster.intersectObject(tree);
+  const intersected = intersects[0];
+  if (intersected) {
+    const vertex = intersected.face.a;
+    const mesh = intersected.object;
+    console.log(
+      mesh.geometry.userData.mergedUserData.find(
+        (ud) => vertex >= ud.verticesRange.min && vertex <= ud.verticesRange.max
+      )
+    );
+  }
+});
+
+window.addEventListener("mousemove", (ev) => {
+  pointer.x = (ev.clientX / window.innerWidth) * 2 - 1;
+  pointer.y = -(ev.clientY / window.innerHeight) * 2 + 1;
+});
 
 const update = (elapsedTime) => {
-  start = start || elapsedTime;
-  const growth = THREE.MathUtils.lerp(
-    0,
-    1,
-    easeOut((elapsedTime - start) / 10)
-  );
-  
-  myMesh?.scale.set(growth, growth, growth);
+  raycaster.setFromCamera(pointer, camera);
 };
 
 run(update);

@@ -23,14 +23,16 @@ const createDepsTree = ({ maxDepth, ...params }) => {
       flatShading: true,
     })
   );
-  return { mesh, root };
+  mesh.geometry.userData.mergedUserData.forEach((ud, i, arr) => {
+    const prevMax = arr[i - 1]?.verticesRange?.max || 0;
+    ud.verticesRange.min += prevMax + 1;
+    ud.verticesRange.max += prevMax;
+  })
+  return mesh;
 };
 
 self.addEventListener("message", (e) => {
-  const {
-    mesh,
-    root: { name, radius, h, topRadius },
-  } = createDepsTree(e.data);
+  const mesh = createDepsTree(e.data);
 
   const arrayBuffers = [];
   for (let attributeName of Object.keys(mesh.geometry.attributes)) {
@@ -42,11 +44,7 @@ self.addEventListener("message", (e) => {
       type: "done",
       payload: mesh.toJSON(),
       metadata: {
-        name,
-        radius,
-        h,
-        topRadius,
-        boundingBox: mesh.geometry.boundingBox
+        boundingBox: mesh.geometry.boundingBox,
       },
     },
     arrayBuffers
