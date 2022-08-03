@@ -1,34 +1,16 @@
-import * as THREE from "three";
-import { mergeBufferGeometries } from "three/examples/jsm/utils/BufferGeometryUtils";
 import { DepsTreeFactory } from "./depstree";
 
 const createDepsTree = ({ maxDepth, ...params }) => {
-  const DepsTree = DepsTreeFactory({
+  const TreeGeometryBuilder = DepsTreeFactory({
     maxDepth,
     dependencies: params.dependencies,
     onBranchCreated: (branchCreated) =>
       postMessage({
         type: "loading",
-        payload: branchCreated / DepsTree.totalBranches,
+        payload: branchCreated / TreeGeometryBuilder.totalBranches,
       }),
   });
-  const root = new DepsTree(params);
-  const geos = root.fold((acc, n) => acc.concat(n.geometry), []);
-  const treeGeo = mergeBufferGeometries(geos);
-  treeGeo.computeBoundingBox();
-  const mesh = new THREE.Mesh(
-    treeGeo,
-    new THREE.MeshStandardMaterial({
-      color: 0x8f8f8f,
-      flatShading: true,
-    })
-  );
-  mesh.geometry.userData.mergedUserData.forEach((ud, i, arr) => {
-    const prevMax = arr[i - 1]?.verticesRange?.max || 0;
-    ud.verticesRange.min += prevMax + 1;
-    ud.verticesRange.max += prevMax;
-  })
-  return mesh;
+  return TreeGeometryBuilder.build(params);
 };
 
 self.addEventListener("message", (e) => {

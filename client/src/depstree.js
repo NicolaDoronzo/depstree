@@ -1,6 +1,7 @@
 import SimplexNoise from "simplex-noise";
 import * as THREE from "three";
 import { MathUtils } from "three";
+import { mergeBufferGeometries } from "three/examples/jsm/utils/BufferGeometryUtils";
 
 export function DepsTreeFactory({
   maxDepth,
@@ -20,13 +21,68 @@ export function DepsTreeFactory({
 
   let branchCreatedCounter = 0;
 
-  return class DepsTree {
+  return class TreeGeometryBuilder {
     static get totalBranches() {
       return totalBranches;
     }
 
     static get ready() {
       return branchCreatedCounter === totalBranches;
+    }
+
+    static build(params) {
+      const root = new TreeGeometryBuilder(params);
+      const geos = root.fold((acc, n) => acc.concat(n.geometry), []);
+      const treeGeo = mergeBufferGeometries(geos);
+      treeGeo.computeBoundingBox();
+      treeGeo.userData.mergedUserData.forEach((ud, i, arr) => {
+        const prevMax = arr[i - 1]?.verticesRange?.max || 0;
+        ud.verticesRange.min += prevMax + 1;
+        ud.verticesRange.max += prevMax;
+      });
+      return new THREE.Mesh(
+        treeGeo,
+        new THREE.MeshStandardMaterial({
+          color: 0x8f8f8f,
+          flatShading: true,
+        })
+      );
+    }
+
+    /**
+     * 
+     * @param {*} params 
+     * @returns {Promise<THREE.Mesh>}
+     */
+    static async buildAsync(params) {
+      const root = new TreeGeometryBuilder(params);
+
+      const buildTreeWhenBranchesReady = (resolve) => {
+        if (TreeGeometryBuilder.ready) {
+          const geoms = root.fold(
+            (acc, branch) => acc.concat(branch.geometry),
+            []
+          );
+          const treeGeo = mergeBufferGeometries(geoms);
+          treeGeo.userData.mergedUserData.forEach((ud, i, arr) => {
+            const prevMax = arr[i - 1]?.verticesRange?.max || 0;
+            ud.verticesRange.min += prevMax + 1;
+            ud.verticesRange.max += prevMax;
+          });
+          const mesh = new THREE.Mesh(
+            treeGeo,
+            new THREE.MeshPhongMaterial({
+              color: 0x8f8f8f,
+              flatShading: true,
+            })
+          );
+
+          resolve(mesh);
+        } else {
+          requestAnimationFrame(() => buildTreeWhenBranchesReady(resolve));
+        }
+      };
+      return new Promise(buildTreeWhenBranchesReady);
     }
 
     constructor({ dependencies = [], name, index, parent, level = 0 }) {
@@ -84,7 +140,7 @@ export function DepsTreeFactory({
         onBranchCreated(branchCreatedCounter);
         this.branches = dependencies.map(
           (dep, i) =>
-            new DepsTree({
+            new TreeGeometryBuilder({
               dependencies: dep.dependencies,
               parent: this,
               index: i,
@@ -97,7 +153,7 @@ export function DepsTreeFactory({
           onBranchCreated(branchCreatedCounter);
           this.branches = dependencies.map(
             (dep, i) =>
-              new DepsTree({
+              new TreeGeometryBuilder({
                 dependencies: dep.dependencies,
                 parent: this,
                 index: i,
