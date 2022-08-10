@@ -3,8 +3,8 @@ import {
   DependencyTreeChoiceUI,
   EmptyPackageMenuUI,
   LoadingBarUI
-} from "../package-loader-ui";
-import { Sequence, Step } from "../sequence";
+} from "./package-loader-ui";
+import { Sequence, Step } from "../lib/sequence";
 
 
 const { scene, gui } = setup();
