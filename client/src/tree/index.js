@@ -1,10 +1,10 @@
 import * as THREE from "three";
 
 /**
- *
- * @returns {Promise<THREE.Mesh>}
+ * 
+ * @returns {Promise<THREE.Mesh | THREE.InstancedMesh}
  */
-export const createDepsTreeAsync = async ({ onBranchCreated, ...params }) => {
+export const createTree = async ({ onBranchCreated, ...params }) => {
   const worker = new Worker(new URL("./worker.js", import.meta.url), {
     type: "module",
   });

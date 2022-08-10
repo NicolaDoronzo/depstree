@@ -11,6 +11,7 @@ const setup = () => {
   const canvas = document.querySelector("canvas.webgl");
   const uiContainer = document.querySelector("#ui");
   const scene = new THREE.Scene();
+  const pointer = new THREE.Vector2();
 
   window.debugSphere = (vec) => {
     const debugSphere = new THREE.Mesh(
@@ -42,6 +43,11 @@ const setup = () => {
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 
     uiRenderer.setSize(sizes.width, sizes.height);
+  });
+
+  addEventListener("mousemove", (ev) => {
+    pointer.x = (ev.clientX / window.innerWidth) * 2 - 1;
+    pointer.y = -(ev.clientY / window.innerHeight) * 2 + 1;
   });
 
   const camera = new THREE.PerspectiveCamera(
@@ -105,6 +111,7 @@ const setup = () => {
     run: tick,
     sizes,
     uiRenderer,
+    pointer
   });
 };
 

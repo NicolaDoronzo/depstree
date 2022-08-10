@@ -1,7 +1,14 @@
-import { createDepsTreeSync } from "./depstree";
+import { createSync } from "./builder";
 
 self.addEventListener("message", (e) => {
-  const mesh = createDepsTreeSync({...e.data, instanced: true });
+  const mesh = createSync({
+    ...e.data,
+    onBranchCreated: (progress) =>
+      postMessage({
+        type: "loading",
+        payload: progress,
+      })
+  });
 
   const arrayBuffers = [];
   for (let attributeName of Object.keys(mesh.geometry.attributes)) {
