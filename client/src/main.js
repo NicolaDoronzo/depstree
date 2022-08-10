@@ -1,3 +1,4 @@
+import SimplexNoise from "simplex-noise";
 import * as THREE from "three";
 import { createDepsTreeAsync } from "./create-depstree";
 import {
@@ -7,7 +8,8 @@ import {
 } from "./package-loader-ui";
 import { Sequence, Step } from "./sequence";
 import setup from "./setup";
-import { default as testdata } from "./testdata";
+import testdata, { generateRandomDepsTreeMetadata } from "./testdata";
+import perlin from './shaders/perlin.vert';
 
 const getAnalysedPackage = (body) =>
   fetch("http://localhost:8081/file", {
@@ -28,16 +30,45 @@ const { run, scene, gui, camera } = setup();
 
 // scene.fog = new THREE.FogExp2(0xffffff, 0.0002);
 
-const fieldWidth = 100000;
-const fieldHeight = 100000;
+const makeField = (size) => {
+  const fieldWidth = size;
+  const fieldHeight = size;
 
-const field = new THREE.Mesh(
-  new THREE.PlaneBufferGeometry(fieldWidth, fieldHeight),
-  new THREE.MeshStandardMaterial({ color: "white" })
-);
+  const segs = Math.min(size / 50, 100);
+  const field = new THREE.Mesh(
+    new THREE.PlaneBufferGeometry(
+      fieldWidth,
+      fieldHeight,
+      segs,
+      segs
+    ),
+    new THREE.MeshStandardMaterial({ color: 0xffffff, flatShading: true })
+  );
 
-field.receiveShadow = true;
-field.rotateX(-Math.PI * 0.5);
+  const verts = field.geometry.attributes.position;
+  const simplex = new SimplexNoise();
+  for (let i = 0; i < verts.count; i++) {
+    const x = verts.getX(i);
+    const y = verts.getY(i);
+    const z = verts.getZ(i);
+    const shift = simplex.noise2D(x, y) * (size / segs) / 2;
+    verts.setZ(i, z + shift);
+  }
+
+  verts.needsUpdate = true;
+  const geo = new THREE.WireframeGeometry(field.geometry);
+  geo.attributes.position.needsUpdate = true;
+  field.add(
+    new THREE.LineSegments(
+      geo,
+      new THREE.LineBasicMaterial({ color: 0x000000 })
+    )
+  );
+
+  field.receiveShadow = true;
+  field.rotateX(-Math.PI * 0.5);
+  return field;
+};
 
 const sequence = new Sequence([
   new Step({
@@ -138,88 +169,58 @@ const sequence = new Sequence([
   }),
 ]);
 
-// Promise.all(
-//   [...new Array(0)]
-//     .map((_, i) =>
-//       generateRandomDepsTreeMetadata({
-//         maxDeps: 4,
-//         maxDepth: 10,
-//       })
-//     )
-//     .map((data) => createDepsTreeAsync(data))
-// ).then((trees) => {
-//   trees.forEach((mesh, i) => {
-//     mesh.position.x += 400 * i;
-//     scene.add(mesh);
-//   });
-// });
 
-// const p = document.createElement('p')
-// p.innerText = 'Lol'
-// p.style.fontSize = "4rem"
-// scene.add(new CSS3DObject(p));
-// createDepsTreeAsync(testdata).then((mesh) => scene.add(mesh));
-// scene.add(createDepsTree(testdata));
-// new FontLoader()
-//   .loadAsync("/fonts/helvetiker_regular.typeface.json")
-//   .then((font) => {
-//     createDepsTreeAsync(testdata).then((tree) => {
-//       const color = 0x006699;
-
-//       const matLite = new THREE.MeshBasicMaterial({
-//         color: color,
-//         transparent: true,
-//         opacity: 0.8,
-//         side: THREE.DoubleSide,
-//       });
-
-//       const message = testdata.name;
-//       const shapes = font.generateShapes(message, 500);
-//       const geometry = new THREE.ShapeGeometry(shapes);
-
-//       geometry.computeBoundingBox();
-//       const xMid =
-//         -0.5 * (geometry.boundingBox.max.x - geometry.boundingBox.min.x);
-
-//       geometry.translate(xMid, 0, 0);
-
-//       const text = new THREE.Mesh(geometry, matLite);
-//       text.position
-//         .copy(tree.position)
-//         // .add(new THREE.Vector3(0, 0, tree.root.radius * 3));
-//       text.rotateX(-Math.PI / 2);
-//       scene.add(text);
-//       scene.add(tree);
-//     });
-//   });
-
+/**
+ * @type {THREE.Mesh}
+ */
 let tree = null;
-createDepsTreeAsync(testdata).then((mesh) => {
-  console.log(mesh);
-  tree = mesh;
-  scene.add(field);
-  scene.add(mesh);
-  const ambientLight = new THREE.AmbientLight();
-  ambientLight.intensity = -1;
-  gui.add(ambientLight, "intensity").name("ambient");
-  scene.add(ambientLight);
-  const bottomLight = new THREE.SpotLight(0xffffff);
-  bottomLight.intensity = 4;
-  gui.add(bottomLight, "intensity");
-  gui.add(bottomLight, "angle");
-  gui.add(bottomLight, "penumbra");
-  const rootMetadata = mesh.geometry.userData.mergedUserData[0];
-  bottomLight.position.copy(mesh.position);
-  bottomLight.position.x += rootMetadata.radius * 1.5;
-  bottomLight.position.z += rootMetadata.radius * 1.5;
-  bottomLight.position.y += 10;
-  bottomLight.target.position.set(
-    bottomLight.position.x,
-    1000,
-    bottomLight.position.z
-  );
-  bottomLight.target.updateMatrixWorld();
 
+const customUniforms = {
+  uTime: { value: 0 },
+  uMinVertex: { value: 0 },
+  uMaxVertex: { value: 0 },
+};
+
+createDepsTreeAsync(
+  generateRandomDepsTreeMetadata({ maxDeps: 5, maxDepth: 4 })
+  // testdata
+).then((mesh) => {
+  tree = mesh;
+  // tree.material.onBeforeCompile = (shader) => {
+  //   shader.uniforms.uTime = customUniforms.uTime;
+  //   shader.vertexShader = shader.vertexShader.replace(
+  //     `#include <common>`,
+  //     `#include <common>
+       
+  //       uniform float uTime;
+  //       varying vec2 vUv;
+  //       ${perlin}
+  //     `
+  //   );
+
+  //   shader.vertexShader = shader.vertexShader.replace(
+  //     `#include <begin_vertex>`,
+  //     `#include <begin_vertex>
+        
+  //       float noiz = cnoise(1.0, 1.0);
+  //       vUv = uv;
+  //     `
+  //   );
+  //   shader.fragmentShader = shader.fragmentShader.replace(
+  //     `#include <common>`,
+  //     `#include <common>
+  //       varying vec2 vUv;
+  //     `
+  //   )
+    
+  //   shader.fragmentShader = shader.fragmentShader.replace(
+  //     `#include <output_fragment>`,
+  //     `#include <output_fragment>
+      
+  //       gl_FragColor = vec4(vUv.y, vUv.y, vUv.y, 1.0);
+  //     `
+  //   )
+  // };
   const boxSizes = {
     width: Math.abs(
       mesh.metadata.boundingBox.min.x - mesh.metadata.boundingBox.max.x
@@ -231,6 +232,16 @@ createDepsTreeAsync(testdata).then((mesh) => {
       mesh.metadata.boundingBox.min.z - mesh.metadata.boundingBox.max.z
     ),
   };
+  const field = makeField(
+    // boxSizes.width * 30
+    1000
+    );
+  scene.add(field);
+  scene.add(mesh);
+  const ambientLight = new THREE.AmbientLight();
+  ambientLight.intensity = -1;
+  gui.add(ambientLight, "intensity").name("ambient");
+  scene.add(ambientLight);
 
   const box = new THREE.Mesh(
     new THREE.BoxGeometry(boxSizes.width, boxSizes.height, boxSizes.depth),
@@ -257,23 +268,29 @@ createDepsTreeAsync(testdata).then((mesh) => {
   topLight.target.updateMatrixWorld();
 
   scene.add(topLight);
-  scene.add(bottomLight);
 });
 
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 
 window.addEventListener("click", () => {
-  const intersects = raycaster.intersectObject(tree);
+  const intersects = raycaster.intersectObject(tree, false);
   const intersected = intersects[0];
   if (intersected) {
-    const vertex = intersected.face.a;
-    const mesh = intersected.object;
-    console.log(
-      mesh.geometry.userData.mergedUserData.find(
-        (ud) => vertex >= ud.verticesRange.min && vertex <= ud.verticesRange.max
-      )
+    const piece = tree.geometry.userData.mergedUserData.find(
+      (ud) => vertex >= ud.verticesRange.min && vertex <= ud.verticesRange.max
     );
+
+    for (let i = piece.verticesRange.min; i <= piece.verticesRange.max; i++) {
+      const x = tree.geometry.attributes.position.getX(i)
+      const y = tree.geometry.attributes.position.getY(i)
+      const z = tree.geometry.attributes.position.getZ(i)
+      tree.geometry.attributes.position.setX(i, x + 100);
+      tree.geometry.attributes.position.setY(i, y + 100);
+      tree.geometry.attributes.position.setZ(i, z + 100);
+      tree.geometry.attributes.position.needsUpdate = true;
+    }
+
   }
 });
 
@@ -284,6 +301,7 @@ window.addEventListener("mousemove", (ev) => {
 
 const update = (elapsedTime) => {
   raycaster.setFromCamera(pointer, camera);
+  customUniforms.uTime.value = elapsedTime;
 };
 
 run(update);

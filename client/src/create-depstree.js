@@ -1,13 +1,9 @@
 import * as THREE from "three";
-import { DepsTreeFactory } from "./depstree";
 
-export const createDepsTreeSync = ({ maxDepth, ...params }) => {
-  return DepsTreeFactory({
-    maxDepth,
-    dependencies: params.dependencies,
-  }).build(params);
-};
-
+/**
+ *
+ * @returns {Promise<THREE.Mesh>}
+ */
 export const createDepsTreeAsync = async ({ onBranchCreated, ...params }) => {
   const worker = new Worker(new URL("./worker.js", import.meta.url), {
     type: "module",
@@ -25,19 +21,4 @@ export const createDepsTreeAsync = async ({ onBranchCreated, ...params }) => {
     };
     worker.postMessage(params);
   });
-};
-
-export const createDepsTreeAsyncV2 = ({
-  maxDepth,
-  onBranchCreated = () => {},
-  ...params
-}) => {
-  const TreeGeometryBuilder = DepsTreeFactory({
-    maxDepth,
-    onBranchCreated: (branchNum) =>
-      onBranchCreated(branchNum / TreeGeometryBuilder.totalBranches),
-    isAsync: true,
-    ...params,
-  });
-  return TreeGeometryBuilder.buildAsync(params);
 };

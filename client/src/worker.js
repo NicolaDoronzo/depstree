@@ -1,20 +1,7 @@
-import { DepsTreeFactory } from "./depstree";
-
-const createDepsTree = ({ maxDepth, ...params }) => {
-  const TreeGeometryBuilder = DepsTreeFactory({
-    maxDepth,
-    dependencies: params.dependencies,
-    onBranchCreated: (branchCreated) =>
-      postMessage({
-        type: "loading",
-        payload: branchCreated / TreeGeometryBuilder.totalBranches,
-      }),
-  });
-  return TreeGeometryBuilder.build(params);
-};
+import { createDepsTreeSync } from "./depstree";
 
 self.addEventListener("message", (e) => {
-  const mesh = createDepsTree(e.data);
+  const mesh = createDepsTreeSync({...e.data, instanced: true });
 
   const arrayBuffers = [];
   for (let attributeName of Object.keys(mesh.geometry.attributes)) {
@@ -31,5 +18,4 @@ self.addEventListener("message", (e) => {
     },
     arrayBuffers
   );
-  // postMessage(mesh.toJSON());
 });
