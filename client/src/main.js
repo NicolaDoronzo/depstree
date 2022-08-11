@@ -1,65 +1,23 @@
-import SimplexNoise from "simplex-noise";
-import { createTree } from "./tree";
 import * as THREE from "three";
-import setup from "./setup";
 import { makeField } from "./field";
-import testdata, { generateRandomDepsTreeMetadata } from "./testdata";
-import perlin from './shaders/perlin.vert';
+import setup from "./setup";
+import { generateRandomDepsTreeMetadata } from "./testdata";
+import { createTree } from "./tree";
+import shaderCustomization from "./tree/shader-customization";
 
 const { run, scene, gui, camera, pointer } = setup();
-
-
-const customUniforms = {
-  uTime: { value: 0 },
-  uMinVertex: { value: 0 },
-  uMaxVertex: { value: 0 },
-};
-
 
 createTree(
   generateRandomDepsTreeMetadata({ maxDeps: 5, maxDepth: 4 })
   // testdata
 ).then((tree) => {
 
-  createTree({... generateRandomDepsTreeMetadata({ maxDeps: 5, maxDepth: 4 }), instanced: true }).then(instancedTree => {
+  createTree({ ...generateRandomDepsTreeMetadata({ maxDeps: 5, maxDepth: 4 }), instanced: true }).then(instancedTree => {
     instancedTree.position.x += 300;
+    shaderCustomization(instancedTree.material);
     scene.add(instancedTree);
   })
-  // tree.material.onBeforeCompile = (shader) => {
-  //   shader.uniforms.uTime = customUniforms.uTime;
-  //   shader.vertexShader = shader.vertexShader.replace(
-  //     `#include <common>`,
-  //     `#include <common>
 
-  //       uniform float uTime;
-  //       varying vec2 vUv;
-  //       ${perlin}
-  //     `
-  //   );
-
-  //   shader.vertexShader = shader.vertexShader.replace(
-  //     `#include <begin_vertex>`,
-  //     `#include <begin_vertex>
-
-  //       float noiz = cnoise(1.0, 1.0);
-  //       vUv = uv;
-  //     `
-  //   );
-  //   shader.fragmentShader = shader.fragmentShader.replace(
-  //     `#include <common>`,
-  //     `#include <common>
-  //       varying vec2 vUv;
-  //     `
-  //   )
-
-  //   shader.fragmentShader = shader.fragmentShader.replace(
-  //     `#include <output_fragment>`,
-  //     `#include <output_fragment>
-
-  //       gl_FragColor = vec4(vUv.y, vUv.y, vUv.y, 1.0);
-  //     `
-  //   )
-  // };
   const boxSizes = {
     width: Math.abs(
       tree.metadata.boundingBox.min.x - tree.metadata.boundingBox.max.x
@@ -121,7 +79,6 @@ const raycaster = new THREE.Raycaster();
 
 const update = (elapsedTime) => {
   raycaster.setFromCamera(pointer, camera);
-  customUniforms.uTime.value = elapsedTime;
 };
 
 run(update);

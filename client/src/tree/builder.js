@@ -2,6 +2,7 @@ import SimplexNoise from "simplex-noise";
 import * as THREE from "three";
 import { MathUtils } from "three";
 import { mergeBufferGeometries } from "three/examples/jsm/utils/BufferGeometryUtils";
+import shaderCustomization from "./shader-customization";
 
 const material = new THREE.MeshBasicMaterial({
   vertexColors: true,
@@ -14,7 +15,7 @@ const instancedMaterial = new THREE.MeshBasicMaterial({
   color: 'white',
   polygonOffset: true,
   polygonOffsetFactor: 1,
-  polygonOffsetUnits: 1,
+  polygonOffsetUnits: 1
 });
 
 function DepsTreeFactory({
@@ -216,10 +217,11 @@ function DepsTreeFactory({
   }
 
   const buildInstanced = (params) => {
-    const geo = new THREE.CylinderBufferGeometry(0.7, 1, 1, 20, 20);
+    const geo = new THREE.CylinderBufferGeometry(0.7, 1, 1, 10, 10);
     const instancedMesh = new THREE.InstancedMesh(geo, instancedMaterial, totalBranches);
     instancedMesh.geometry.computeBoundingBox();
     new TreeBuilder({ ...params, instancedMesh });
+    instancedMesh.userData.totalBranches = totalBranches;
     return instancedMesh
   }
 
@@ -255,7 +257,7 @@ function DepsTreeFactory({
   }
 }
 
-export const createSync = ({ maxDepth, onBranchCreated = () => {}, instanced, ...params }) => {
+export const createSync = ({ maxDepth, onBranchCreated = () => { }, instanced, ...params }) => {
   const { build, buildInstanced } = DepsTreeFactory({
     maxDepth,
     dependencies: params.dependencies,
