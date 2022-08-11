@@ -70,6 +70,8 @@ const setup = () => {
     element: uiContainer,
   });
 
+  const raycaster = new THREE.Raycaster();
+
   renderer.setSize(sizes.width, sizes.height);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -91,6 +93,7 @@ const setup = () => {
     if (process.env.NODE_ENV === "development") {
       stats.begin();
     }
+    raycaster.setFromCamera(pointer, camera);
 
     update(elapsedTime);
     controls.update();
@@ -111,7 +114,8 @@ const setup = () => {
     run: tick,
     sizes,
     uiRenderer,
-    pointer
+    pointer,
+    raycaster
   });
 };
 

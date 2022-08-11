@@ -19,9 +19,6 @@ self.addEventListener("message", (e) => {
     {
       type: "done",
       payload: mesh.toJSON(),
-      metadata: {
-        boundingBox: mesh.geometry.boundingBox,
-      },
     },
     arrayBuffers
   );

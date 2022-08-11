@@ -2,7 +2,6 @@ import SimplexNoise from "simplex-noise";
 import * as THREE from "three";
 import { MathUtils } from "three";
 import { mergeBufferGeometries } from "three/examples/jsm/utils/BufferGeometryUtils";
-import shaderCustomization from "./shader-customization";
 
 const material = new THREE.MeshBasicMaterial({
   vertexColors: true,
@@ -12,15 +11,15 @@ const material = new THREE.MeshBasicMaterial({
 });
 
 const instancedMaterial = new THREE.MeshBasicMaterial({
-  color: 'white',
+  color: "white",
   polygonOffset: true,
   polygonOffsetFactor: 1,
-  polygonOffsetUnits: 1
+  polygonOffsetUnits: 1,
 });
 
 function DepsTreeFactory({
   maxDepth,
-  onBranchCreated = async () => { },
+  onBranchCreated = async () => {},
   isAsync = false,
   dependencies,
 }) {
@@ -37,12 +36,18 @@ function DepsTreeFactory({
   })({ dependencies }, dependencies.length + 1);
 
   class TreeBuilder {
-
     static get ready() {
       return branchCreatedCounter === totalBranches;
     }
 
-    constructor({ dependencies = [], name, index, parent, level = 0, instancedMesh }) {
+    constructor({
+      dependencies = [],
+      name,
+      index,
+      parent,
+      level = 0,
+      instancedMesh,
+    }) {
       branchCreatedCounter++;
       this.parent = parent;
       this.index = index;
@@ -64,17 +69,24 @@ function DepsTreeFactory({
       if (!instancedMesh) {
         this.geometry = this._makeBranchGeometry();
         this.geometry.applyMatrix4(this.matrix);
+        this.geometry.userData.indexLength =
+          this.geometry.index.array.length;
       } else {
-        instancedMesh.setMatrixAt(branchCreatedCounter - 1, this.matrix.clone().scale(new THREE.Vector3(this.radius, this.h, this.radius)));
+        instancedMesh.setMatrixAt(
+          branchCreatedCounter - 1,
+          this.matrix
+            .clone()
+            .scale(new THREE.Vector3(this.radius, this.h, this.radius))
+        );
       }
 
       this.branches = [];
 
       if (!isAsync) {
-        this._setSubBranches()
+        this._setSubBranches();
       } else {
         requestAnimationFrame(() => {
-          this._setSubBranches()
+          this._setSubBranches();
         });
       }
     }
@@ -89,7 +101,7 @@ function DepsTreeFactory({
             index,
             name: sub.name,
             level: this.level + 1,
-            instancedMesh: this.instancedMesh
+            instancedMesh: this.instancedMesh,
           })
       );
     }
@@ -129,10 +141,13 @@ function DepsTreeFactory({
     };
 
     _calculateHeight() {
-      return (maxDepth +
-        Math.log10(this.dependencies.length || 1) / Math.max(this.level * 3, 1)) *
-        this.radius +
+      return (
+        (maxDepth +
+          Math.log10(this.dependencies.length || 1) /
+            Math.max(this.level * 3, 1)) *
+          this.radius +
         this.name.length
+      );
     }
 
     _makeBranchGeometry() {
@@ -165,14 +180,11 @@ function DepsTreeFactory({
         colorBuffer[i3 + 1] = 1;
         colorBuffer[i3 + 2] = 1;
       }
-      geometry.setAttribute(
-        "color",
-        new THREE.BufferAttribute(colorBuffer, 3)
-      );
+      geometry.setAttribute("color", new THREE.BufferAttribute(colorBuffer, 3));
 
       this._shiftVertsWithNoise(geometry);
 
-      return geometry
+      return geometry;
     }
 
     _shiftVertsWithNoise(geometry) {
@@ -205,25 +217,42 @@ function DepsTreeFactory({
       cb(this);
       this.branches.forEach((branch) => branch.visit(cb));
     }
-  };
+  }
 
   const build = (params) => {
     const root = new TreeBuilder(params);
-    const geos = root.fold((acc, n) => acc.concat(n.geometry), []);
+    const geos = root.fold((acc, branch) => acc.concat(branch.geometry), []);
     const treeGeo = mergeBufferGeometries(geos);
     treeGeo.computeBoundingBox();
     const mesh = new THREE.Mesh(treeGeo, material);
+    mesh.userData.boundingBox = treeGeo.boundingBox;
+    mesh.userData.indexGroups = treeGeo.userData.mergedUserData.reduce(
+      (acc, current, i) => {
+        const previous = acc[i - 1];
+        const start = !previous ? 0 : previous.start + previous.count;
+        const count = current.indexLength;
+        return acc.concat({
+          start,
+          count,
+        });
+      },
+      []
+    );
     return mesh;
-  }
+  };
 
   const buildInstanced = (params) => {
     const geo = new THREE.CylinderBufferGeometry(0.7, 1, 1, 10, 10);
-    const instancedMesh = new THREE.InstancedMesh(geo, instancedMaterial, totalBranches);
+    const instancedMesh = new THREE.InstancedMesh(
+      geo,
+      instancedMaterial,
+      totalBranches
+    );
     instancedMesh.geometry.computeBoundingBox();
     new TreeBuilder({ ...params, instancedMesh });
     instancedMesh.userData.totalBranches = totalBranches;
-    return instancedMesh
-  }
+    return instancedMesh;
+  };
 
   const buildAsync = (params) => {
     const root = new TreeBuilder(params);
@@ -248,16 +277,21 @@ function DepsTreeFactory({
       }
     };
     return new Promise(buildTreeWhenBranchesReady);
-  }
+  };
 
   return {
     build,
     buildAsync,
-    buildInstanced
-  }
+    buildInstanced,
+  };
 }
 
-export const createSync = ({ maxDepth, onBranchCreated = () => { }, instanced, ...params }) => {
+export const createSync = ({
+  maxDepth,
+  onBranchCreated = () => {},
+  instanced,
+  ...params
+}) => {
   const { build, buildInstanced } = DepsTreeFactory({
     maxDepth,
     dependencies: params.dependencies,
@@ -265,16 +299,15 @@ export const createSync = ({ maxDepth, onBranchCreated = () => { }, instanced, .
   });
 
   if (instanced) {
-    return buildInstanced(params)
+    return buildInstanced(params);
   } else {
     return build(params);
   }
 };
 
-
 export const createAsync = ({
   maxDepth,
-  onBranchCreated = () => { },
+  onBranchCreated = () => {},
   ...params
 }) => {
   const { buildAsync } = DepsTreeFactory({

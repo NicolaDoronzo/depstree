@@ -3,7 +3,6 @@ import { makeField } from "./field";
 import setup from "./setup";
 import { generateRandomDepsTreeMetadata } from "./testdata";
 import { createTree } from "./tree";
-import shaderCustomization from "./tree/shader-customization";
 
 const { run, scene, gui, camera, pointer } = setup();
 
@@ -11,22 +10,18 @@ createTree(
   generateRandomDepsTreeMetadata({ maxDeps: 5, maxDepth: 4 })
   // testdata
 ).then((tree) => {
-
-  createTree({ ...generateRandomDepsTreeMetadata({ maxDeps: 5, maxDepth: 4 }), instanced: true }).then(instancedTree => {
-    instancedTree.position.x += 300;
-    shaderCustomization(instancedTree.material);
-    scene.add(instancedTree);
-  })
-
   const boxSizes = {
     width: Math.abs(
-      tree.metadata.boundingBox.min.x - tree.metadata.boundingBox.max.x
+      tree.mesh.userData.boundingBox.min.x -
+        tree.mesh.userData.boundingBox.max.x
     ),
     height: Math.abs(
-      tree.metadata.boundingBox.min.y - tree.metadata.boundingBox.max.y
+      tree.mesh.userData.boundingBox.min.y -
+        tree.mesh.userData.boundingBox.max.y
     ),
     depth: Math.abs(
-      tree.metadata.boundingBox.min.z - tree.metadata.boundingBox.max.z
+      tree.mesh.userData.boundingBox.min.z -
+        tree.mesh.userData.boundingBox.max.z
     ),
   };
   const field = makeField(
@@ -34,7 +29,7 @@ createTree(
     1000
   );
   scene.add(field);
-  scene.add(tree);
+  scene.add(tree.mesh);
   const ambientLight = new THREE.AmbientLight();
   ambientLight.intensity = -1;
   gui.add(ambientLight, "intensity").name("ambient");
@@ -57,28 +52,17 @@ createTree(
   topLight.angle = 3;
   topLight.penumbra = 1;
   topLight.intensity = 3;
-  topLight.position.copy(tree.position);
+  topLight.position.copy(tree.mesh.position);
   topLight.position.y += boxSizes.height * 4;
   topLight.position.z -= boxSizes.depth * 4;
   topLight.position.x -= boxSizes.width * 4;
-  topLight.target.position.copy(tree.position);
+  topLight.target.position.copy(tree.mesh.position);
   topLight.target.updateMatrixWorld();
 
   scene.add(topLight);
-
-  window.addEventListener("click", () => {
-    const intersects = raycaster.intersectObject(tree, false);
-    const intersected = intersects[0];
-    if (intersected) {
-      // do stuff
-    }
-  });
 });
 
-const raycaster = new THREE.Raycaster();
 
-const update = (elapsedTime) => {
-  raycaster.setFromCamera(pointer, camera);
-};
+const update = (elapsedTime) => {};
 
 run(update);
