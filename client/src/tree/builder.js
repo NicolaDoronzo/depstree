@@ -48,6 +48,7 @@ function DepsTreeFactory({
       level = 0,
       instancedMesh,
     }) {
+      this.branchId = branchCreatedCounter;
       branchCreatedCounter++;
       this.parent = parent;
       this.index = index;
@@ -69,8 +70,8 @@ function DepsTreeFactory({
       if (!instancedMesh) {
         this.geometry = this._makeBranchGeometry();
         this.geometry.applyMatrix4(this.matrix);
-        this.geometry.userData.indexLength =
-          this.geometry.index.array.length;
+        this.geometry.userData.branchId = this.branchId;
+        this.geometry.userData.indexLength = this.geometry.index.array.length;
       } else {
         instancedMesh.setMatrixAt(
           branchCreatedCounter - 1,
@@ -80,6 +81,9 @@ function DepsTreeFactory({
         );
       }
 
+      /**
+       * @type {TreeBuilder[]}
+       */
       this.branches = [];
 
       if (!isAsync) {
@@ -103,6 +107,9 @@ function DepsTreeFactory({
             level: this.level + 1,
             instancedMesh: this.instancedMesh,
           })
+      );
+      this.geometry.userData.subBranchesId = this.branches.map(
+        (b) => b.branchId
       );
     }
 
@@ -202,7 +209,7 @@ function DepsTreeFactory({
         verts.setY(i, y + barkShiftingAmt);
         verts.setZ(i, z + barkShiftingAmt);
       }
-
+      geometry.computeVertexNormals();
       verts.needsUpdate = true;
     }
 
@@ -230,14 +237,30 @@ function DepsTreeFactory({
       (acc, current, i) => {
         const previous = acc[i - 1];
         const start = !previous ? 0 : previous.start + previous.count;
-        const count = current.indexLength;
         return acc.concat({
           start,
-          count,
+          count: current.indexLength,
+          branchId: current.branchId,
         });
       },
       []
     );
+    const branchingMap = treeGeo.userData.mergedUserData.reduce(
+      (acc, ud) => ({ ...acc, [ud.branchId]: ud.subBranchesId }),
+      {}
+    );
+    /**
+     *
+     * @param {{[key: string]: number[]}} map
+     */
+    const solveRec = (map, currentKey) =>
+      map[currentKey].concat(map[currentKey].flatMap((v) => solveRec(map, v)));
+
+    const solved = Object.entries(branchingMap).reduce((acc, [key, value]) => {
+      return { ...acc, [key]: value.concat(value.flatMap(v => solveRec(branchingMap, v))) };
+    }, {});
+    
+    mesh.userData.branchingMap = solved;
     return mesh;
   };
 

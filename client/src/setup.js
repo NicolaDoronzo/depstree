@@ -81,6 +81,7 @@ const setup = () => {
   uiRenderer.setSize(sizes.width, sizes.height);
 
   const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
   controls.update();
 
   const clock = new THREE.Clock();
@@ -115,7 +116,8 @@ const setup = () => {
     sizes,
     uiRenderer,
     pointer,
-    raycaster
+    raycaster,
+    orbitControls: controls
   });
 };
 

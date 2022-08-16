@@ -1,15 +1,18 @@
 import * as THREE from "three";
 import { makeField } from "./field";
 import setup from "./setup";
-import { generateRandomDepsTreeMetadata } from "./testdata";
+import { generateRandomDepsTreeMetadata, default as testdata } from "./testdata";
 import { createTree } from "./tree";
 
 const { run, scene, gui, camera, pointer } = setup();
 
+let mesh = null;
+
 createTree(
-  generateRandomDepsTreeMetadata({ maxDeps: 5, maxDepth: 4 })
-  // testdata
+  // generateRandomDepsTreeMetadata({ maxDeps: 5, maxDepth: 4 })
+  testdata
 ).then((tree) => {
+  mesh = tree;
   const boxSizes = {
     width: Math.abs(
       tree.mesh.userData.boundingBox.min.x -
@@ -63,6 +66,8 @@ createTree(
 });
 
 
-const update = (elapsedTime) => {};
+const update = (elapsedTime) => {
+  mesh?.update();
+};
 
 run(update);
