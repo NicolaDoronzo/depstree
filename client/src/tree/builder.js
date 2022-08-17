@@ -4,10 +4,11 @@ import { MathUtils } from "three";
 import { mergeBufferGeometries } from "three/examples/jsm/utils/BufferGeometryUtils";
 
 const material = new THREE.MeshBasicMaterial({
-  vertexColors: true,
   polygonOffset: true,
   polygonOffsetFactor: 1,
   polygonOffsetUnits: 1,
+  transparent: true,
+  depthTest: false
 });
 
 const instancedMaterial = new THREE.MeshBasicMaterial({
@@ -177,17 +178,10 @@ function DepsTreeFactory({
         heightSegments
       );
 
-      const colorBuffer = new Float32Array(
-        geometry.attributes.position.count * 3
+      geometry.setAttribute(
+        "aIsBranchSelected",
+        new THREE.BufferAttribute(new Uint32Array(geometry.attributes.position.count).fill(0), 1)
       );
-
-      for (let i = 0; i < geometry.attributes.position.count * 3; i++) {
-        const i3 = i * 3;
-        colorBuffer[i3 + 0] = 1;
-        colorBuffer[i3 + 1] = 1;
-        colorBuffer[i3 + 2] = 1;
-      }
-      geometry.setAttribute("color", new THREE.BufferAttribute(colorBuffer, 3));
 
       this._shiftVertsWithNoise(geometry);
 
@@ -257,10 +251,14 @@ function DepsTreeFactory({
       map[currentKey].concat(map[currentKey].flatMap((v) => solveRec(map, v)));
 
     const solved = Object.entries(branchingMap).reduce((acc, [key, value]) => {
-      return { ...acc, [key]: value.concat(value.flatMap(v => solveRec(branchingMap, v))) };
+      return {
+        ...acc,
+        [key]: value.concat(value.flatMap((v) => solveRec(branchingMap, v))),
+      };
     }, {});
-    
+
     mesh.userData.branchingMap = solved;
+    mesh.userData.totalBranches = totalBranches;
     return mesh;
   };
 

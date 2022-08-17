@@ -5,34 +5,29 @@ import setup from "../setup";
 const { raycaster, orbitControls } = setup();
 
 export class TreeEntity {
-  colorNeedsUpdate = false;
+  selectedVerticesNeedUpdate = false;
   selectedBranchId$ = new BehaviorSubject(null);
 
   /**
    *
-   * @param {THREE.Mesh} mesh
+   * @param {THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>} mesh
    */
   constructor(mesh) {
     this.mesh = mesh;
     mesh.castShadow = true;
-
     this.branchVertexIdDictionary = this._getVerticesForEachBranchId();
 
-    if (!mesh.isInstancedMesh) {
-      this._addWireframeGeometry();
-    }
-
     this.selectedBranchId$.subscribe((selectedBranchId) => {
-      this._clearColor();
+      this._deselectAllBranches();
       if (selectedBranchId) {
-        this._colorBranchWithSubBranches(selectedBranchId);
+        this._selectBranchWithSubBranches(selectedBranchId);
         const lookAtTarget = new THREE.Vector3();
         this.computeSubtreeBoundingBox(selectedBranchId).getCenter(
           lookAtTarget
         );
         orbitControls.target = lookAtTarget;
       }
-      this.colorNeedsUpdate = true;
+      this.selectedVerticesNeedUpdate = true;
     });
 
     window.addEventListener("click", () => {
@@ -48,13 +43,39 @@ export class TreeEntity {
         }
       }
     });
-  }
 
-  _addWireframeGeometry() {
-    const geo = new THREE.EdgesGeometry(this.mesh.geometry);
-    const mat = new THREE.LineBasicMaterial({ color: 0x000000 });
-    const wireframe = new THREE.LineSegments(geo, mat);
-    this.mesh.add(wireframe);
+    this.mesh.material.onBeforeCompile = (shader) => {
+      shader.vertexShader = shader.vertexShader.replace(
+        `#include <common>`,
+        `#include <common>
+          attribute uint aIsBranchSelected;
+          flat varying uint vIsBranchSelected;
+          varying vec2 vUv;
+        `
+      );
+      shader.vertexShader = shader.vertexShader.replace(
+        `#include <begin_vertex>`,
+        `#include <begin_vertex>
+          vUv = uv;
+          vIsBranchSelected = aIsBranchSelected;
+        `
+      );
+
+      shader.fragmentShader = shader.fragmentShader.replace(
+        `#include <common>`,
+        `#include <common>
+          varying vec2 vUv;
+          flat varying uint vIsBranchSelected;
+        `
+      );
+      shader.fragmentShader = shader.fragmentShader.replace(
+        `#include <output_fragment>`,
+        `#include <output_fragment>
+          
+          gl_FragColor = uint(1) == vIsBranchSelected ? vec4(1.0, 0.0, 0.0, 1.0) : vec4(1.0, 0.0, 0.0, 0.1);
+        `
+      );
+    };
   }
 
   /**
@@ -92,21 +113,25 @@ export class TreeEntity {
     return this.mesh.userData.branchingMap[branchId].concat(branchId);
   }
 
-  _clearColor() {
-    for (let i = 0; i < this.mesh.geometry.attributes.color.count; i++) {
-      this.mesh.geometry.attributes.color.setXYZ(i, 1, 1, 1);
+  _deselectAllBranches() {
+    for (
+      let i = 0;
+      i < this.mesh.geometry.attributes.aIsBranchSelected.count;
+      i++
+    ) {
+      this.mesh.geometry.attributes.aIsBranchSelected.setX(i, 0);
     }
   }
 
-  _setBranchColor(branchId) {
+  _selectBranch(branchId) {
     this.branchVertexIdDictionary[branchId].forEach((index) => {
-      this.mesh.geometry.attributes.color.setXYZ(index, 1, 0, 0);
+      this.mesh.geometry.attributes.aIsBranchSelected.setX(index, 1);
     });
   }
 
-  _colorBranchWithSubBranches = (branchId) => {
+  _selectBranchWithSubBranches = (branchId) => {
     for (const id of this._getSubBranchesIdOfBranch(branchId)) {
-      this._setBranchColor(id);
+      this._selectBranch(id);
     }
   };
 
@@ -123,7 +148,9 @@ export class TreeEntity {
   }
 
   update() {
-    this.mesh.geometry.attributes.color.needsUpdate = this.colorNeedsUpdate;
-    this.colorNeedsUpdate = false;
+    // this.mesh.material.needsUpdate = this.selectedVerticesNeedUpdate;
+    this.mesh.geometry.attributes.aIsBranchSelected.needsUpdate =
+      this.selectedVerticesNeedUpdate;
+    this.selectedVerticesNeedUpdate = false;
   }
 }

@@ -28,8 +28,8 @@ createTree(
     ),
   };
   const field = makeField(
-    // boxSizes.width * 30
-    1000
+    boxSizes.width * 30
+    // 1000
   );
   scene.add(field);
   scene.add(tree.mesh);

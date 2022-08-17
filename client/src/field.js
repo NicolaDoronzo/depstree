@@ -29,12 +29,6 @@ export const makeField = (size) => {
   verts.needsUpdate = true;
   const geo = new THREE.WireframeGeometry(field.geometry);
   geo.attributes.position.needsUpdate = true;
-  field.add(
-    new THREE.LineSegments(
-      geo,
-      new THREE.LineBasicMaterial({ color: 0x000000 })
-    )
-  );
 
   field.receiveShadow = true;
   field.rotateX(-Math.PI * 0.5);
