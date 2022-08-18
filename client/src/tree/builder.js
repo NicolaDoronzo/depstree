@@ -224,9 +224,7 @@ function DepsTreeFactory({
     const root = new TreeBuilder(params);
     const geos = root.fold((acc, branch) => acc.concat(branch.geometry), []);
     const treeGeo = mergeBufferGeometries(geos);
-    treeGeo.computeBoundingBox();
     const mesh = new THREE.Mesh(treeGeo, material);
-    mesh.userData.boundingBox = treeGeo.boundingBox;
     mesh.userData.indexGroups = treeGeo.userData.mergedUserData.reduce(
       (acc, current, i) => {
         const previous = acc[i - 1];

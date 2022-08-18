@@ -2,11 +2,11 @@ import * as THREE from "three";
 import { BehaviorSubject } from "../lib/behaviorSubject";
 import setup from "../setup";
 
-const { raycaster, orbitControls } = setup();
+const { raycaster } = setup();
 
 export class TreeEntity {
   selectedVerticesNeedUpdate = false;
-  selectedBranchId$ = new BehaviorSubject(null);
+  selectedBranchId$ = new BehaviorSubject(0);
 
   /**
    *
@@ -14,6 +14,7 @@ export class TreeEntity {
    */
   constructor(mesh) {
     this.mesh = mesh;
+    this.mesh.geometry.computeBoundingSphere();
     mesh.castShadow = true;
     this.branchVertexIdDictionary = this._getVerticesForEachBranchId();
 
@@ -21,11 +22,7 @@ export class TreeEntity {
       this._deselectAllBranches();
       if (selectedBranchId) {
         this._selectBranchWithSubBranches(selectedBranchId);
-        const lookAtTarget = new THREE.Vector3();
-        this.computeSubtreeBoundingBox(selectedBranchId).getCenter(
-          lookAtTarget
-        );
-        orbitControls.target = lookAtTarget;
+        
       }
       this.selectedVerticesNeedUpdate = true;
     });

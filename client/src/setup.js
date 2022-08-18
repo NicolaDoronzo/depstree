@@ -1,7 +1,6 @@
 import * as dat from "dat.gui";
 import Stats from "stats.js";
 import * as THREE from "three";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { CSS2DRenderer } from "three/examples/jsm/renderers/CSS2DRenderer";
 import "./styles.css";
 
@@ -80,10 +79,6 @@ const setup = () => {
 
   uiRenderer.setSize(sizes.width, sizes.height);
 
-  const controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true;
-  controls.update();
-
   const clock = new THREE.Clock();
   let previousTime = 0;
   const tick = (update) => {
@@ -97,7 +92,6 @@ const setup = () => {
     raycaster.setFromCamera(pointer, camera);
 
     update(elapsedTime);
-    controls.update();
     renderer.render(scene, camera);
     uiRenderer.render(scene, camera);
     if (process.env.NODE_ENV === "development") {
@@ -117,7 +111,6 @@ const setup = () => {
     uiRenderer,
     pointer,
     raycaster,
-    orbitControls: controls
   });
 };
 

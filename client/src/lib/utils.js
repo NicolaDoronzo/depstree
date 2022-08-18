@@ -5,3 +5,4 @@ export const takeScreenshot = (canvas, format = "image/jpeg") => {
   a.download = new Date().toUTCString();
   a.click();
 };
+
