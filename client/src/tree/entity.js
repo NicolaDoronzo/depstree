@@ -14,15 +14,16 @@ export class TreeEntity {
    */
   constructor(mesh) {
     this.mesh = mesh;
+    this.originalDependencyTree = mesh.userData.originalDependencyTree;
     this.mesh.geometry.computeBoundingSphere();
     mesh.castShadow = true;
     this.branchVertexIdDictionary = this._getVerticesForEachBranchId();
 
     this.selectedBranchId$.subscribe((selectedBranchId) => {
       this._deselectAllBranches();
+      console.log(selectedBranchId);
       if (selectedBranchId) {
         this._selectBranchWithSubBranches(selectedBranchId);
-        
       }
       this.selectedVerticesNeedUpdate = true;
     });

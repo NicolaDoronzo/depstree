@@ -6,3 +6,8 @@ export const takeScreenshot = (canvas, format = "image/jpeg") => {
   a.click();
 };
 
+export function decodeHtml(html) {
+  const txt = document.createElement("textarea");
+  txt.innerHTML = html;
+  return txt.value;
+}

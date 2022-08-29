@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { CameraController } from "./camera-controller";
 import { makeField } from "./field";
+import { NavigatorUI } from "./navigator/navigator-ui";
 import setup from "./setup";
 import {
   generateRandomDepsTreeMetadata,
@@ -35,7 +36,8 @@ createTree(
     tree.mesh.geometry.boundingSphere.radius * 30
     // 1000
   );
-
+  new NavigatorUI(tree)
+  // scene.add(new NavigatorUI(testdata));
   scene.add(field);
   scene.add(tree.mesh);
   const ambientLight = new THREE.AmbientLight();

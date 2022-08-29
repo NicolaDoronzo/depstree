@@ -14,3 +14,48 @@ body {
   left: 0;
   outline: none;
 }
+
+.navigator {
+  position: fixed;
+  top: 20%;
+  left: 1em;
+  overflow-y: auto;
+  max-height: 50%;
+  background: #008F1133;
+  padding: 1em;
+  font-size: 1.1rem;
+}
+
+.navigator ul,
+.navigator li {
+  cursor: pointer;
+}
+
+.navigator ul::before {
+  position: relative;
+  content: "";
+  display: inline-block;
+  width: 0.4em;
+  height: 0.4em;
+  border-right: 0.2em solid black;
+  border-top: 0.2em solid black;
+  margin-right: 0.5em;
+  transform: rotate(135deg);
+}
+
+.navigator ul.closed::before {
+  transform: rotate(45deg);
+}
+
+.navigator ul.closed>ul,
+.navigator ul.closed>li {
+  display: none;
+}
+
+.navigator ul:hover, .navigator li:hover {
+  background-color: #06c91d33;
+}
+
+.navigator ul.selected, .navigator li.selected {
+  background-color: #08dd2133;
+}

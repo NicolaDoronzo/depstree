@@ -23,6 +23,7 @@ function DepsTreeFactory({
   onBranchCreated = async () => {},
   isAsync = false,
   dependencies,
+  name
 }) {
   let branchCreatedCounter = 0;
 
@@ -257,6 +258,7 @@ function DepsTreeFactory({
 
     mesh.userData.branchingMap = solved;
     mesh.userData.totalBranches = totalBranches;
+    mesh.userData.originalDependencyTree = { dependencies, name };
     return mesh;
   };
 
@@ -315,6 +317,7 @@ export const createSync = ({
     maxDepth,
     dependencies: params.dependencies,
     onBranchCreated,
+    name: params.name
   });
 
   if (instanced) {
