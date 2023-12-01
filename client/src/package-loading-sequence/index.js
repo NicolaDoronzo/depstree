@@ -5,9 +5,12 @@ import {
   LoadingBarUI
 } from "./package-loader-ui";
 import { Sequence, Step } from "../lib/sequence";
-
-
-const { scene, gui } = setup();
+import setup from "../setup";
+import { createTree } from "../tree";
+import { CameraController } from "../camera-controller";
+import { makeField } from "../field";
+import { NavigatorUI } from "../navigator/navigator-ui";
+const { scene, gui, camera } = setup();
 
 const getAnalysedPackage = (body) =>
   fetch("http://localhost:8081/file", {
@@ -82,39 +85,64 @@ export default new Sequence([
       const loadingBarUI = new LoadingBarUI();
       scene.add(loadingBarUI);
       handlePromise(
-        createDepsTreeAsync({
+        createTree({
           ...chosenTreeParams,
           onBranchCreated: (progress) =>
             loadingBarUI.updateProgressBar(progress * 100),
         }),
-        "treeMesh"
+        "tree"
       );
       return loadingBarUI;
     },
-    endWhen: ({ treeMesh }) => !!treeMesh,
-    withResult: ({ treeMesh, initResult: loadingBarUI }) => {
+    endWhen: ({ tree }) => !!tree,
+    withResult: ({ tree, initResult: loadingBarUI }) => {
+      const controller = new CameraController(camera);
+      const field = makeField(
+        tree.mesh.geometry.boundingSphere.radius * 30
+      );
       scene.add(field);
-      scene.add(treeMesh);
+      scene.add(tree.mesh);
+      camera.position.set(
+        0,
+        tree.mesh.geometry.boundingSphere.radius / 2,
+        tree.mesh.geometry.boundingSphere.radius * 3
+      );
+    
+      tree.selectedBranchId$.subscribe((branchId) => {
+        if (branchId) {
+          const box = tree.computeSubtreeBoundingBox(branchId);
+          controller.setTarget(box);
+        }
+      });
+      new NavigatorUI(tree)
       const ambientLight = new THREE.AmbientLight();
-      ambientLight.intensity = -5;
+      ambientLight.intensity = -1;
       gui.add(ambientLight, "intensity").name("ambient");
       scene.add(ambientLight);
-      const spotlight = new THREE.PointLight();
 
-      spotlight.position.copy(treeMesh.position);
-      spotlight.rotateX(Math.PI / 2);
-      spotlight.angle = 3;
-      spotlight.intensity = 3;
-      scene.add(spotlight);
-      gui.add(spotlight.position, "x");
-      gui.add(spotlight.position, "y");
-      gui.add(spotlight.position, "z");
-      gui.add(spotlight, "intensity", 0);
-      gui.add(spotlight, "distance", 0);
-      gui.add(spotlight, "angle", 0);
-      gui.add(spotlight, "penumbra", 0);
-      gui.add(spotlight, "decay", 0);
+      const topLight = new THREE.SpotLight();
+      topLight.shadow.camera.far = 100000;
+      topLight.shadow.camera.fov = 100000;
+      topLight.castShadow = true;
+      topLight.angle = 3;
+      topLight.penumbra = 1;
+      topLight.intensity = 3;
+      topLight.position.copy(tree.mesh.position);
+      topLight.position.y += tree.mesh.geometry.boundingSphere.radius * 4;
+      topLight.position.z -= tree.mesh.geometry.boundingSphere.radius * 4;
+      topLight.position.x -= tree.mesh.geometry.boundingSphere.radius * 4;
+      topLight.target.position.copy(tree.mesh.position);
+      topLight.target.updateMatrixWorld();
+
+      scene.add(topLight);
       scene.remove(loadingBarUI);
+      return [controller, tree]
     },
   }),
+  new Step({
+    action: ({ previousTask: { result: entities }, elapsed }) => {
+      entities.forEach(e => e.update(elapsed));
+    },
+    endWhen: () => false
+  })
 ]);
